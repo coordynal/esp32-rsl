@@ -1,0 +1,12 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "/usr/lib64/ros-kilted/lib/python./dist-packages",
+        "/usr/lib64/ros2-kilted/lib/python3.14/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "/usr/lib64/ros-kilted/lib/python./dist-packages",
+        "/usr/lib64/ros2-kilted/lib/python3.14/site-packages"
+    ]
+}
