@@ -9,8 +9,8 @@
 #define LED_PIN 48
 #define BLINK_FAST_MS 150
 
-#define TOPIC_CONTROL "/pidge/tandem_robot_controller/control_state"
-#define TOPIC_ESTOP "/pidge/tandem_robot_controller/estop_state"
+#define TOPIC_CONTROL "/lance/tandem_robot_controller/control_state"
+#define TOPIC_ESTOP "/lance/tandem_robot_controller/estop_state"
 
 Adafruit_NeoPixel led(1, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -176,13 +176,19 @@ void loop() {
             break;
 
         case AGENT_CONNECTED:
-            if (rmw_uros_ping_agent(4000, 1) == RMW_RET_OK) {
-                rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
-            } else {
-                destroy_entities();
+            static unsigned long last_ping = 0;
+            unsigned long now = millis();
 
-                current_state = NO_ROBOT;
-                agent_state = WAITING_AGENT;
+            // Spin every loop, only ping every 2 seconds
+            rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+
+            if (now - last_ping > 2000) {
+                last_ping = now;
+                if (rmw_uros_ping_agent(200, 1) != RMW_RET_OK) {
+                    destroy_entities();
+                    current_state = NO_ROBOT;
+                    agent_state = WAITING_AGENT;
+                }
             }
             break;
     }
