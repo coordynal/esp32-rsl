@@ -12,6 +12,7 @@ Adafruit_NeoPixel led(1, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 enum RobotState {
     NO_ROBOT,
+    HELLO_ROBOT, // first connect
     DISABLE,
     ENABLE,
     ESTOP,
@@ -37,6 +38,13 @@ void update_led() {
     switch (current_state) {
         case NO_ROBOT: {
             led.setPixelColor(0, 0);
+            led.show();
+            break;
+        }
+
+        case HELLO_ROBOT: {
+            uint8_t brightness = log_breathe(now, 500);
+            led.setPixelColor(0, led.Color(0, brightness, 0));
             led.show();
             break;
         }
@@ -67,7 +75,9 @@ void update_led() {
 }
 
 uint32_t last_cmd_received = 0;
-static constexpr uint32_t CMD_TIMEOUT_MS = 2000;
+uint32_t hello_time {0};
+static constexpr uint32_t CMD_TIMEOUT_MS = 4000;
+static constexpr uint32_t HELLO_TIMEOUT_MS = 3000;
 
 void setup() {
     led.begin();
@@ -76,30 +86,45 @@ void setup() {
     led.show();
 
     Serial.begin(115200);
-    
 }
 
 void loop() {
     if (Serial.available() > 0) {
+        static RobotState newState = NO_ROBOT;
         char cmd = Serial.read();
         last_cmd_received = millis();
         switch (cmd) {
             case 'n':
-                current_state = NO_ROBOT;
+                newState = NO_ROBOT;
+                break;
+            case 'h':
+                hello_time = millis();
+                newState = HELLO_ROBOT;
                 break;
             case 'd':
-                current_state = DISABLE;
+                newState = DISABLE;
                 break;
             case 'e':
-                current_state = ENABLE;
+                newState = ENABLE;
                 break;
             case 's':
-                current_state = ESTOP;
-                update_led();
-                sleep(CMD_TIMEOUT_MS);
-                current_state = NO_ROBOT;
+                newState = ESTOP;
                 break;
         }
+
+        // If we are disabled and have just connected, show a greeting state
+        // for HELLO_TIMEOUT_MS
+        if (current_state == HELLO_ROBOT && newState == DISABLE &&
+            millis() - hello_time < HELLO_TIMEOUT_MS) {
+            update_led();
+            return;
+        } else if (current_state == HELLO_ROBOT && millis() - hello_time >= HELLO_TIMEOUT_MS) {
+            hello_time = 0;
+            newState = DISABLE;
+        }
+
+        current_state = newState;
+
     } else if (current_state != NO_ROBOT && millis() - last_cmd_received > CMD_TIMEOUT_MS) {
         current_state = NO_ROBOT;
     }
