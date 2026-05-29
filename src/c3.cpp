@@ -6,6 +6,7 @@
 #define NUM_LEDS 5
 #define BLINK_FAST_MS 150
 #define ESTOP_TOGGLE_MS 90
+#define FINISHED_TARGET_TOGGLE_MS 280
 #define LIGHTHOUSE_SWEEP_MS 900
 
 Adafruit_NeoPixel led(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -14,7 +15,9 @@ enum RobotState {
     NO_ROBOT,
     HELLO_ROBOT, // first connect
     DISABLE,
-    ENABLE,
+    ENABLE_TELEOP,
+    ENABLE_AUTONOMOUS,
+    FINISHED_TARGET, // used to show completion of goal, etc
     ESTOP,
 };
 volatile RobotState current_state = HELLO_ROBOT;
@@ -83,6 +86,17 @@ void setEstopToggle(unsigned long now) {
     }
 }
 
+void setHappyTargetToggle(unsigned long now) {
+    bool left_side = ((now / FINISHED_TARGET_TOGGLE_MS) % 2) == 0;
+
+    led.clear();
+    if (left_side) {
+        led.setPixelColor(1, led.Color(0, 255, 0));
+    } else {
+        led.setPixelColor(3, led.Color(0, 255, 0));
+    }
+}
+
 // --- LED driver ---
 void update_led() {
     static bool blink_on = false;
@@ -91,30 +105,48 @@ void update_led() {
 
     switch (current_state) {
         case NO_ROBOT: {
-            setLighthouseSweep(now, 70, 70, 70, LIGHTHOUSE_SWEEP_MS);
+            setLighthouseSweep(now, 50, 50, 50, LIGHTHOUSE_SWEEP_MS);
             led.show();
             break;
         }
 
         case HELLO_ROBOT: {
-            uint8_t brightness = log_breathe_floor(now, 1000, 100);
+            uint8_t brightness = log_breathe_floor(now, 800, 100);
             setRainbowBreathe(now, brightness, 1200);
             led.show();
             break;
         }
 
         case DISABLE: {
-            setAll(0, 0, log_breathe(now, 2500));
+            float brightness = log_breathe_floor(now, 4000, 10);
+            setAll(brightness / 10.0, brightness / 10.0, brightness);
             led.show();
             break;
         }
 
-        case ENABLE: {
+        case ENABLE_TELEOP: {
             if (now - last_blink >= BLINK_FAST_MS) {
                 blink_on = !blink_on;
                 last_blink = now;
             }
             setAll(blink_on ? 255 : 0, blink_on ? 30 : 0, 0);
+            led.show();
+            break;
+        }
+
+        case ENABLE_AUTONOMOUS: {
+            // if (now - last_blink >= BLINK_FAST_MS) {
+            //     blink_on = !blink_on;
+            //     last_blink = now;
+            // }
+            // setAll(blink_on ? 180 : 0, 0, blink_on ? 120 : 0);
+            setLighthouseSweep(now, 255, 0, 180, 80);
+            led.show();
+            break;
+        }
+
+        case FINISHED_TARGET: {
+            setHappyTargetToggle(now);
             led.show();
             break;
         }
@@ -158,7 +190,13 @@ void loop() {
                 newState = DISABLE;
                 break;
             case 'e':
-                newState = ENABLE;
+                newState = ENABLE_TELEOP;
+                break;
+            case 'a':
+                newState = ENABLE_AUTONOMOUS;
+                break;
+            case 'f':
+                newState = FINISHED_TARGET;
                 break;
             case 's':
                 newState = ESTOP;
