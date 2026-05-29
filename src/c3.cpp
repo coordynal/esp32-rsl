@@ -91,9 +91,9 @@ void setHappyTargetToggle(unsigned long now) {
 
     led.clear();
     if (left_side) {
-        led.setPixelColor(1, led.Color(0, 255, 0));
+        led.setPixelColor(1, led.Color(0, 255, 15));
     } else {
-        led.setPixelColor(3, led.Color(0, 255, 0));
+        led.setPixelColor(3, led.Color(0, 255, 15));
     }
 }
 
@@ -161,8 +161,10 @@ void update_led() {
 
 uint32_t last_cmd_received = 0;
 uint32_t hello_time {0};
+uint32_t finished_time {0};
 static constexpr uint32_t CMD_TIMEOUT_MS = 4000;
 static constexpr uint32_t HELLO_TIMEOUT_MS = 3000;
+static constexpr uint32_t FINISHED_TIMEOUT_MS = 1000;
 
 void setup() {
     led.begin();
@@ -212,6 +214,20 @@ void loop() {
         } else if (current_state == HELLO_ROBOT && millis() - hello_time >= HELLO_TIMEOUT_MS) {
             hello_time = 0;
             newState = DISABLE;
+        }
+
+        if (current_state == FINISHED_TARGET && newState == ENABLE_AUTONOMOUS &&
+            millis() - finished_time < FINISHED_TIMEOUT_MS) {
+            update_led();
+            return;
+        } else if (current_state == FINISHED_TARGET &&
+                   millis() - finished_time >= FINISHED_TIMEOUT_MS) {
+            finished_time = 0;
+            newState = ENABLE_AUTONOMOUS;
+        }
+
+        if (newState == FINISHED_TARGET) {
+            finished_time = millis();
         }
 
         current_state = newState;
